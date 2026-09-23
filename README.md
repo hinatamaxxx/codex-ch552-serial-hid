@@ -56,6 +56,31 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action captur
 
 UAC を含む重要な画面では、取得した映像を確認してから操作してください。入力を止めるには `release` を送るか、CH552 の USB-A を抜きます。ファームウェアも 5 秒間コマンドがなければ保持中のキーとボタンを離します。
 
+### UAC をキーボードで承認する
+
+この PC の管理者アカウント向け UAC では、最初に「いいえ」にフォーカスがありました。キャプチャでアプリと発行元を確認した後、`LEFT` で「はい」にフォーカスを移し、再度キャプチャで白いフォーカス枠を確認してから `ENTER` を送れます。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action key -Key LEFT -Port COM5
+powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action capture -CaptureDevice 'Cam Link 4K' -Output .\output\uac-selected.png
+powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action key -Key ENTER -Port COM5
+```
+
+実機ではこの方法で起動した処理が High Mandatory Level（`S-1-16-12288`）になりました。「はい」が最初から選ばれている場合や選択状態が不明な場合は、画面を確認して操作を調整してください。標準ユーザーの資格情報入力型 UAC は未検証です。
+
+### Jev に通常画面のボタンを選ばせる（試作）
+
+`jev_hid.py` は Windows UI Automation から前面ウィンドウの有効なボタンを読み、TypeSafe Jev に目的に合うボタンを選ばせ、CH552 のマウス入力でクリックします。UAC の保護された画面には使えません。前面ウィンドウ名とボタン名が設定済みの Jev プロバイダーに送信されるため、画面内容が適切な場合に使用してください。
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements-jev.txt
+.\.venv\Scripts\python.exe .\jev_hid.py --goal 'Close the Run dialog without launching anything'
+.\.venv\Scripts\python.exe .\jev_hid.py --goal 'Close the Run dialog without launching anything' --execute
+```
+
+Jev 実行時は `--execute` を省くと予測のみ、付けるとクリックします。この PC では「ファイル名を指定して実行」の「キャンセル」を Jev が選び、CH552 がクリックしてダイアログを閉じることを確認しました。用途は名前の付いた通常のボタンに限られ、テキスト入力や複雑な画面操作は未実装です。
+
 ## 構成と検証範囲
 
 - `firmware/SerialHidBridge/`: CH552 用ファームウェア。CH55xDuino の HID キーボード・マウス例を基にしています。UART0 と UART1 の両方を 9600 bps、8N1 で受け付けます。
