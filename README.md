@@ -58,15 +58,13 @@ UAC を含む重要な画面では、取得した映像を確認してから操�
 
 ### UAC をキーボードで承認する
 
-この PC の管理者アカウント向け UAC では、最初に「いいえ」にフォーカスがありました。キャプチャでアプリと発行元を確認した後、`LEFT` で「はい」にフォーカスを移し、再度キャプチャで白いフォーカス枠を確認してから `ENTER` を送れます。
+この PC の管理者アカウント向け UAC では、最初に「いいえ」にフォーカスがあり、「はい」はその左にありました。キャプチャでアプリ・発行元・選択状態を確認できた場合、`uac-yes` は `LEFT` と `ENTER` を同じシリアル接続で続けて送ります。
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action key -Key LEFT -Port COM5
-powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action capture -CaptureDevice 'Cam Link 4K' -Output .\output\uac-selected.png
-powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action key -Key ENTER -Port COM5
+powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action uac-yes -Port COM5
 ```
 
-実機ではこの方法で起動した処理が High Mandatory Level（`S-1-16-12288`）になりました。「はい」が最初から選ばれている場合や選択状態が不明な場合は、画面を確認して操作を調整してください。標準ユーザーの資格情報入力型 UAC は未検証です。
+実機では個別キーと `uac-yes` の両方で、起動した処理が High Mandatory Level（`S-1-16-12288`）になりました。`uac-yes` の送信はこの PC で約 0.7 秒でした。「はい」が最初から選ばれている場合や選択状態が不明な場合は、画面を確認して個別のキー操作に切り替えてください。標準ユーザーの資格情報入力型 UAC は未検証です。
 
 ### Jev に通常画面のボタンを選ばせる（試作）
 

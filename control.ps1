@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('ping','key','keydown','keyup','combo','text','move','click','mousedown','mouseup','scroll','release','capture')]
+    [ValidateSet('ping','key','keydown','keyup','combo','text','move','click','mousedown','mouseup','scroll','release','capture','uac-yes')]
     [string]$Action = 'ping',
     [string]$Port = 'COM5',
     [string]$CaptureDevice = 'Cam Link 4K',
@@ -72,6 +72,19 @@ try {
             Send-Command 1 $code
             Start-Sleep -Milliseconds 50
             Send-Command 2 $code
+        }
+        'uac-yes' {
+            try {
+                Send-Command 1 ([byte]$usage['LEFT'])
+                Start-Sleep -Milliseconds 50
+                Send-Command 2 ([byte]$usage['LEFT'])
+                Start-Sleep -Milliseconds 50
+                Send-Command 1 ([byte]$usage['ENTER'])
+                Start-Sleep -Milliseconds 50
+                Send-Command 2 ([byte]$usage['ENTER'])
+            } finally {
+                Send-Command 7
+            }
         }
         'keydown' {
             if (-not $Key) { throw 'Specify -Key' }
