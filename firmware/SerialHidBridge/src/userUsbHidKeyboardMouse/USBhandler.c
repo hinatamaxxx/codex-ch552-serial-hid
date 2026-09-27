@@ -443,6 +443,8 @@ void USBInterrupt(void) { // inline not really working in multiple files in SDCC
     UIF_BUS_RST = 0;
 
     UsbConfig = 0;
+    // A reset cancels any pending EP1 transfer; no IN completion will clear it.
+    UpPoint1_Busy = 0;
 
     // Clear interrupt flag
   }
