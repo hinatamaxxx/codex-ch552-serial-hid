@@ -1,5 +1,7 @@
 # ファームウェアの再ビルド
 
+このページは、動作確認に使った CH552 向けファームウェアのビルド手順です。別の USB HID 対応 Arduino 互換基板で同じ構成を作る場合は、UART と HID の処理を移植し、その基板用のツールチェーンでビルドしてください。同梱の `.ino` は CH55xDuino 専用のコードを含むため、ビルド対象の変更だけでは移植できません。ここで生成する `.bin` / `.hex` は別のマイコンには使えません。
+
 通常の導入では [dist/SerialHidBridge.bin](dist/SerialHidBridge.bin) を使用できます。ソースから再ビルドする場合は Windows 用の [Arduino CLI](https://arduino.github.io/arduino-cli/) をインストールし、次を実行します。
 
 ```powershell

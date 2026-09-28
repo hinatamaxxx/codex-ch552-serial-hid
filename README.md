@@ -1,6 +1,8 @@
-# CH552-SERIAL HID Bridge
+# Serial USB HID Bridge（CH552-SERIAL 実装例）
 
-[CH552-SERIAL](https://booth.pm/ja/items/4326008) を、シリアル通信で操作できる USB キーボード・マウスにするファームウェアと Windows 用コマンドです。Codex などのエージェントが、通常の Computer Use では操作できない Windows の UAC 確認画面に、外部 USB キーボードとして入力する用途を想定しています。
+シリアル通信で外部 USB キーボード・マウスを操作するためのファームウェアと Windows 用コマンドです。Codex などのエージェントが、通常の Computer Use では操作できない Windows の UAC 確認画面に、外部 USB キーボードとして入力する用途を想定しています。動作確認には [CH552-SERIAL](https://booth.pm/ja/items/4326008) を使用しました。
+
+**この仕組みは特定の製品に限定されません。** USB HID として動作できる Arduino 互換基板と USB–UART（シリアル）変換基板でも、対応するファームウェアを実装すれば同じ構成を作れます。このリポジトリで配布しているファームウェアと書き込み手順は CH552 用です。
 
 **現在の UAC 承認手順はキーボード操作です。** UAC が背面で待機している場合は、タスクバーの盾アイコンにフォーカスを合わせて `Enter` で前面に出し、`←` → `Enter` で「はい」を選びます。2026-09-29 に、この Windows 11 PC で背面待機からの一連の操作を 2 回実施し、起動したテストプロセスが管理者権限（High Mandatory Level、`S-1-16-12288`）になったことを確認しました。画像取得やマウスクリックは使っていません。
 
@@ -8,14 +10,43 @@
 
 ## 接続と必要なもの
 
-接続は 1 台の Windows PC 内で完結します。USB-C 側の CH340 がシリアル通信を受信し、基板内の UART を経由して USB-A 側の CH552 が同じ PC にキーボード・マウス入力を送ります。基板の USB-A と USB-C の両方を接続してください。
+### 共通の構成
 
-- CH552-SERIAL 基板と USB-A / USB-C の接続。両方を操作対象 PC に接続します。
+接続は 1 台の Windows PC 内で完結します。
+
+```text
+PC → USB–UART 変換基板 → UART → USB HID 対応マイコン → USB → 同じ PC
+```
+
+- USB キーボード・マウスとして動作でき、UART を受信できるマイコン基板。Arduino 互換というだけでは足りず、使用する基板と USB ライブラリが HID に対応している必要があります。
+- Windows で COM ポートとして使える USB–UART 変換基板。変換チップは CH340 に限定されません。
+- 別々の基板で組む場合は、TX → RX、RX ← TX、GND を接続します。UART の信号電圧を揃え、各基板の給電仕様に従ってください。両方を USB 給電する場合、電源端子は安易に直結しないでください。
 - Windows と Windows PowerShell。動作確認は Windows 11 で実施しました。
-- 上記のキーボードによる UAC 操作には、キャプチャボードも FFmpeg も不要です。別途画面を確認する場合にだけ使います。映像取得テストでは Cam Link 4K を使用しました。
-- ファームウェア書き込み時のみ、Python 3、`pyusb`、`libusb`、[Zadig](https://zadig.akeo.ie/) が必要です。
+- 上記のキーボードによる UAC 操作には、キャプチャボードも FFmpeg も不要です。別途画面を確認する場合にだけ使います。
 
-## 導入
+たとえば [Arduino Leonardo](https://docs.arduino.cc/hardware/leonardo) や [Micro](https://docs.arduino.cc/hardware/micro) は USB キーボード・マウスとして動作できる基板です。これら向けのコードやバイナリは同梱していません。移植が必要で、別基板での本プロジェクトの動作は未検証です。
+
+### 今回の動作確認環境
+
+CH552-SERIAL は上記の USB–UART と USB HID の役割を 1 枚にまとめた基板です。USB-C 側の CH340 がシリアル通信を受信し、基板内の UART を経由して USB-A 側の CH552 が同じ PC に入力します。この基板では USB-A と USB-C の両方を接続してください。
+
+| 項目 | 動作確認に使った例 |
+| --- | --- |
+| HID マイコン / シリアル変換 | CH552 / CH340（CH552-SERIAL 基板） |
+| OS / シリアルポート | Windows 11 / `COM5` |
+| 任意の映像取得機器 | Cam Link 4K |
+
+`COM5` とキャプチャデバイス名は、この PC での例です。使用する環境に合わせて変更してください。
+
+### 別のマイコンで再現する場合
+
+同梱の `.bin` / `.hex` は CH552 専用で、ほかの Arduino 互換基板にはそのまま書き込めません。[ファームウェアのソース](firmware/SerialHidBridge/SerialHidBridge.ino)を基に、UART の受信処理と USB HID の送信処理を使用する基板向けに移植してください。
+
+`control.ps1` をそのまま使うには、9600 bps・8N1 の通信設定に加え、同じコマンド形式、チェックサム、応答形式、HID Usage ID によるキー指定を実装する必要があります。Arduino の `Keyboard` API のキー値とは単純に同一視できません。移植後は `ping`、`Test-HidKeyboard.ps1` による実入力、UAC 承認後の対象プロセスの権限を順に検証してください。
+
+## CH552-SERIAL での導入
+
+以下は今回の動作確認基板向けの手順です。書き込み時のみ Python 3、`pyusb`、`libusb`、[Zadig](https://zadig.akeo.ie/) が必要です。別の基板では、その基板に対応したビルド・書き込み方法を使用してください。
 
 1. 基板から USB-A と USB-C を両方抜き、10 秒待ちます。基板のスイッチを押したまま USB-A **だけ**を接続し、スイッチを離します。ブートローダーの USB ID は `4348:55E0` です。
 2. USB-C は抜いたまま、Zadig で **`4348:55E0` にだけ WinUSB** を割り当てます。USB-C 側の CH340（`1A86:7523`）は書き込み対象ではありません。
@@ -30,7 +61,7 @@ python .\flash_when_ready.py
 
 ## 操作
 
-デバイスマネージャーで CH340 の COM 番号を調べてください。以下は実機で使った `COM5` の例です。
+デバイスマネージャーで使用する USB–UART 変換基板の COM 番号を調べてください。以下は実機の CH340 で使った `COM5` の例です。
 
 Codex から使う場合は、このリポジトリを作業場所として開き、[AGENTS.md](AGENTS.md) の手順でコマンドを実行します。これは通常の Computer Use 操作に加えて使うシリアル HID 経路です。COM 番号は、その PC に合わせて指定します。
 
@@ -48,7 +79,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action releas
 
 `key`、`keydown`、`keyup`、`combo`、`text`、`move`、`click`、`mousedown`、`mouseup`、`scroll`、`release` に対応します。`text` は英字・数字・空白・改行向けです。その他のキーは `-Key` に HID Usage ID を 16 進数で指定できます（例: `-Key 0x2B` は Tab）。マウス移動は相対値で、Windows のポインター加速により画面上の移動量が変わります。
 
-入力を止めるには `release` を送るか、CH552 の USB-A を抜きます。ファームウェアも 5 秒間コマンドがなければ保持中のキーとボタンを離します。
+入力を止めるには `release` を送るか、HID 側の USB 接続（CH552-SERIAL では USB-A）を抜きます。ファームウェアも 5 秒間コマンドがなければ保持中のキーとボタンを離します。
 
 ### UAC をキーボードで承認する
 
@@ -64,7 +95,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action uac-ye
 
 ### 背面の UAC をスクリーンショットなしで前面に出す
 
-自分が直前に起動した、承認対象が明確な UAC に限って使います。起動前に UAC がなかったことを確認してください。`Get-UacState.ps1` は現在の入力先デスクトップ、および同一ログインセッションの `consent.exe` を調べます。通常デスクトップ（`inputDesktop: "Default"`）に、名前を読み取れる UAC が 1 件だけ待機している場合、次のコマンドで UI Automation（UIA）によりタスクバーのボタンにフォーカスを合わせ、CH552 の Enter で開きます。
+自分が直前に起動した、承認対象が明確な UAC に限って使います。起動前に UAC がなかったことを確認してください。`Get-UacState.ps1` は現在の入力先デスクトップ、および同一ログインセッションの `consent.exe` を調べます。通常デスクトップ（`inputDesktop: "Default"`）に、名前を読み取れる UAC が 1 件だけ待機している場合、次のコマンドで UI Automation（UIA）によりタスクバーのボタンにフォーカスを合わせ、外部 HID マイコンの Enter 入力で開きます。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Get-UacState.ps1
@@ -103,7 +134,7 @@ powershell -NoProfile -STA -ExecutionPolicy Bypass -File .\scripts\Test-HidKeybo
 
 ### Jev に通常画面のボタンを選ばせる（試作）
 
-`jev_hid.py` は Windows UI Automation から前面ウィンドウの有効なボタンを読み、TypeSafe Jev に目的に合うボタンを選ばせ、CH552 のマウス入力でクリックします。UAC の保護された画面には使えません。前面ウィンドウ名とボタン名が設定済みの Jev プロバイダーに送信されるため、画面内容が適切な場合に使用してください。
+`jev_hid.py` は Windows UI Automation から前面ウィンドウの有効なボタンを読み、TypeSafe Jev に目的に合うボタンを選ばせ、外部 HID マイコンのマウス入力でクリックします。UAC の保護された画面には使えません。前面ウィンドウ名とボタン名が設定済みの Jev プロバイダーに送信されるため、画面内容が適切な場合に使用してください。
 
 ```powershell
 python -m venv .venv
@@ -117,9 +148,9 @@ Jev 実行時は `--execute` を省くと予測のみ、付けるとクリック
 ## 構成と検証範囲
 
 - `firmware/SerialHidBridge/`: CH552 用ファームウェア。CH55xDuino の HID キーボード・マウス例を基にしています。UART0 と UART1 の両方を 9600 bps、8N1 で受け付けます。
-- `control.ps1`: CH340 にコマンドを送る Windows PowerShell スクリプト。シリアルポートを開き直すたびに接続を確認します。
+- `control.ps1`: 指定した COM ポートにコマンドを送る Windows PowerShell スクリプト。シリアルポートを開き直すたびに接続を確認します。
 - `scripts/Get-UacState.ps1`: 入力先デスクトップと、同一ログインセッションで待機中の UAC を取得。
-- `scripts/Bring-PendingUacToFront.ps1`: 背面待機の UAC を特定し、UI Automation によるタスクバーへのフォーカスと CH552 の Enter で前面化。
+- `scripts/Bring-PendingUacToFront.ps1`: 背面待機の UAC を特定し、UI Automation によるタスクバーへのフォーカスと外部 HID マイコンの Enter 入力で前面化。
 - `scripts/Test-HidKeyboard.ps1`: テスト画面で `F24` の押下・解放を受け取り、USB キーボード入力を検証。
 - `flash_when_ready.py`: ブートローダー待機、書き込み、照合。
 - `dist/`: このPCで書き込みと照合に成功したファームウェア。再ビルド方法は [BUILD.md](BUILD.md) を参照してください。
