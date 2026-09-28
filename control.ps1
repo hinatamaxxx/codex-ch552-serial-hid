@@ -62,6 +62,9 @@ try {
         if ($start -ne 0x5A) { throw "Bad reply header: $start" }
         $replySeq = $serial.ReadByte(); $status = $serial.ReadByte(); $checksum = $serial.ReadByte()
         if ($replySeq -ne $seq -or $checksum -ne ($replySeq -bxor $status)) { throw 'Reply checksum/sequence error' }
+        if ($status -eq 3) {
+            throw 'HID keyboard report failed (status 3). Serial is connected, but USB-A is not ready or its HID transfer is stalled. Check USB-A and use the current firmware; ping alone does not verify keyboard input.'
+        }
         if ($status -ne 0) { throw "Device rejected command with status $status" }
     }
     switch ($Action) {
@@ -69,9 +72,13 @@ try {
         'key' {
             if (-not $Key) { throw 'Specify -Key' }
             $code = [byte](Resolve-Key $Key)
-            Send-Command 1 $code
-            Start-Sleep -Milliseconds 50
-            Send-Command 2 $code
+            try {
+                Send-Command 1 $code
+                Start-Sleep -Milliseconds 50
+            } finally {
+                # Clear the firmware's report state even if key-down failed.
+                Send-Command 2 $code
+            }
         }
         'uac-yes' {
             try {
