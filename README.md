@@ -54,19 +54,32 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action releas
 powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action capture -CaptureDevice 'Cam Link 4K' -Output .\capture.png
 ```
 
-UAC を含む重要な画面では、取得した映像を確認してから操作してください。入力を止めるには `release` を送るか、CH552 の USB-A を抜きます。ファームウェアも 5 秒間コマンドがなければ保持中のキーとボタンを離します。
+UAC の対象やボタンの選択状態が不明な場合は、取得した映像を確認してから操作してください。入力を止めるには `release` を送るか、CH552 の USB-A を抜きます。ファームウェアも 5 秒間コマンドがなければ保持中のキーとボタンを離します。
 
 ### UAC をキーボードで承認する
 
 この PC の管理者アカウント向け UAC では、最初に「いいえ」にフォーカスがあり、「はい」はその左にありました。キャプチャでアプリ・発行元・選択状態を確認できた場合、`uac-yes` は `LEFT` と `ENTER` を同じシリアル接続で続けて送ります。
 
-`uac-yes` は UAC が前面にある状態で使います。タスクバーの盾アイコンから UAC を前面に出す補助処理は、この PC でも実際の背面待機状態での検証がまだ完了していません。
+`uac-yes` は UAC が前面にある状態で使います。タスクバーの盾アイコンで待機している場合は、後述の補助コマンドで前面に出してから承認します。
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\control.ps1 -Action uac-yes -Port COM5
 ```
 
 実機では個別キーと `uac-yes` の両方で、起動した処理が High Mandatory Level（`S-1-16-12288`）になりました。`uac-yes` の送信はこの PC で約 0.7 秒でした。「はい」が最初から選ばれている場合や選択状態が不明な場合は、画面を確認して個別のキー操作に切り替えてください。標準ユーザーの資格情報入力型 UAC は未検証です。
+
+### 背面の UAC をスクリーンショットなしで前面に出す
+
+自分が直前に起動した、承認対象が明確な UAC に限って使います。起動前に UAC がなかったことを確認してください。`Get-UacState.ps1` は現在の入力先デスクトップ、および同一ログインセッションの `consent.exe` を調べます。通常デスクトップ（`inputDesktop: "Default"`）に、名前を読み取れる UAC が 1 件だけ待機している場合、次のコマンドでタスクバーのボタンにフォーカスを合わせ、CH552 の Enter で開きます。
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Get-UacState.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Bring-PendingUacToFront.ps1 -Port COM5
+```
+
+前面化コマンドは「はい」を押しません。同じ UAC の PID がセキュアデスクトップへ移ったことを確認して成功を返します。対象が不明、複数の候補がある、フォーカスを確認できない場合は停止します。状態取得だけでは UAC 内のアプリ名・発行元・ボタン選択状態を読めないため、既に出ていた不明な UAC の承認には使わないでください。
+
+2026-09-29 に、この PC で背面に待機する Windows PowerShell の UAC を再現し、盾アイコンの前面化、`LEFT` → `ENTER` による承認、起動したテストプロセスの High Mandatory Level を確認しました。画像取得は使っていません。ほかの Windows 環境や UAC 表示形式では未検証です。
 
 ### ping は成功するのにキーが届かない場合
 
