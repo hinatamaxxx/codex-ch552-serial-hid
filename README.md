@@ -159,6 +159,12 @@ Jev 実行時は `--execute` を省くと予測のみ、付けるとクリック
 
 通常画面でのマウス入力と Jev のボタン選択は、別の補助機能です。最新の UAC 検証には使っていません。他の PC・Windows 環境・キーボード配列、資格情報入力型 UAC、PC 全体の再起動やスリープ復帰は未検証です。
 
+## Claude Code で使う
+
+「管理者として実行」の [Claude Code 向け導入手順・コピペ用指示文](docs/claude-code.md)と、[スキル雛形](skills/run-as-administrator/SKILL.md)を用意しています。個人スキルとして配置すると `/run-as-administrator` で呼び出せます。モデル名は固定せず、既存の Windows PowerShell スクリプトと外部 HID 機器を共用します。
+
+機器と UAC 操作は Codex から検証済みですが、Claude Code でのスキル実行は未検証です。導入先、リポジトリの絶対パス、COM ポートを利用環境に合わせて設定してください。
+
 ## ライセンスと開発支援
 
 本リポジトリのコードは LGPL-2.1 に従います。CH55xDuino 由来の HID コードは [そのライセンス](licenses/CH55xDuino-LGPL-2.1.txt)、同梱の `third_party/chprog.py` は [MIT ライセンス](third_party/chprog-LICENSE.txt) です。
